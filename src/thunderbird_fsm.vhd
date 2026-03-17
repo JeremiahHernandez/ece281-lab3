@@ -86,15 +86,27 @@ library ieee;
   use ieee.numeric_std.all;
  
 entity thunderbird_fsm is 
---  port(
+port(
+i_clk, i_reset : in std_logic;
+i_left, i_right : in std_logic;
+o_lights_L : out std_logic_vector(2 downto 0);
+o_lights_R : out std_logic_vector(2 downto 0)
 	
---  );
+);
 end thunderbird_fsm;
 
 architecture thunderbird_fsm_arch of thunderbird_fsm is 
+    -- CONSTANTS ------------------------------------------------------------------
+    constant OFF       : std_logic_vector(7 downto 0) := "00000001";
+    constant HAZARD_ON : std_logic_vector(7 downto 0) := "00000010";
+    constant R1        : std_logic_vector(7 downto 0) := "00000100";
+    constant R2        : std_logic_vector(7 downto 0) := "00001000";
+    constant R3        : std_logic_vector(7 downto 0) := "00010000";
+    constant L1        : std_logic_vector(7 downto 0) := "00100000";
+    constant L2        : std_logic_vector(7 downto 0) := "01000000";
+    constant L3        : std_logic_vector(7 downto 0) := "10000000";
+    signal f_state, f_state_next : std_logic_vector(7 downto 0) := OFF;
 
--- CONSTANTS ------------------------------------------------------------------
-  
 begin
 
 	-- CONCURRENT STATEMENTS --------------------------------------------------------	
@@ -102,7 +114,86 @@ begin
     ---------------------------------------------------------------------------------
 	
 	-- PROCESSES --------------------------------------------------------------------
-    
+    process(f_state , i_left, i_right)
+    begin
+         f_state_next <= f_state;
+         
+         case f_state is
+         when OFF =>
+            if (i_left = '1' and i_right = '1') then
+                f_state_next <= HAZARD_ON;
+            elsif (i_left = '1') then
+                f_state_next <= L1;
+            elsif (i_right = '1') then
+                f_state_next <= R1;
+            else
+                f_state_next <= OFF;
+            end if;
+            when HAZARD_ON =>
+            f_state_next <= OFF;
+            when L1 =>
+                f_state_next <= L2;
+            when L2=>
+                f_state_next<=L3;
+            when L3 =>
+                f_state_next<=OFF;
+            when R1=>
+                f_state_next<=R2;
+            when R2=>
+            f_state_next<=R3;
+              
+            when R3=>
+            f_state_next<=OFF; 
+            when others=>
+            f_state_next<=OFF;             
+            end case;
+            end process;
+            
+       process(f_state)
+       begin
+           o_Lights_L<="000";
+           o_Lights_R<="000";
+       case f_state is
+       when OFF=>
+           o_Lights_L<="000";
+           o_Lights_R<="000";
+       when HAZARD_ON=>
+           o_Lights_L<="111";
+           o_Lights_R<="111";
+       when L1=>
+           o_Lights_L<="001";
+           o_Lights_R<="000";
+       when L2=>
+           o_Lights_L<="011";
+           o_Lights_R<="000";
+       when L3=>
+           o_Lights_L<="111";
+           o_Lights_R<="000";
+       when R1=>
+           o_Lights_L<="000";
+           o_Lights_R<="001";
+       when R2=>
+           o_Lights_L<="000";
+           o_Lights_R<="011";
+       when R3=>
+           o_Lights_L<="000";
+           o_Lights_R<="111";
+       when others=>
+           o_Lights_L<="000";
+           o_Lights_R<="000";
+end case;
+end process;
+
+    process(i_clk)
+    begin
+        if rising_edge(i_clk) then
+            if i_reset = '1' then
+                f_state <=OFF;
+            else
+                f_state<= f_state_next;
+            end if;
+        end if;
+    end process;
 	-----------------------------------------------------					   
 				  
 end thunderbird_fsm_arch;
